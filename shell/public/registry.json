@@ -1,0 +1,16 @@
+{
+  "mfes": [
+    {
+      "name": "editor",
+      "tag": "todo-editor",
+      "slot": "slot-editor",
+      "url": "http://localhost:5174/todo-editor.js"
+    },
+    {
+      "name": "viewer",
+      "tag": "todo-viewer",
+      "slot": "slot-viewer",
+      "url": "http://localhost:5175/todo-viewer.js"
+    }
+  ]
+}
