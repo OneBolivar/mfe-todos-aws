@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es-CO">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b0a10" />
+    <title>Visor de tareas</title>
+    <link rel="icon" href="data:," />
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: radial-gradient(ellipse at 85% 0%, #221735, transparent 34rem), #0b0a10;
+        color: #f4f1fb;
+        font: 1rem/1.5 'Avenir Next', 'Segoe UI Variable', 'Segoe UI', sans-serif;
+      }
+      main { width: min(100% - 2rem, 66rem); margin-inline: auto; padding-block: clamp(2rem, 7vw, 5rem); }
+      h1 { margin: 0 0 1.25rem; font-size: clamp(1.55rem, 5vw, 2.5rem); line-height: 1.2; }
+      .demo-panel { padding: clamp(.75rem, 3vw, 1.5rem); border: 1px solid #2d2840; border-radius: .75rem; background: #14121d; }
+    </style>
+    <script type="module" src="./todo-viewer.js"></script>
+  </head>
+  <body>
+    <main>
+      <h1>Visor de tareas</h1>
+      <div class="demo-panel">
+        <todo-viewer api-url="https://6jwkx3ebma.execute-api.us-east-2.amazonaws.com/dev"></todo-viewer>
+      </div>
+    </main>
+  </body>
+</html>
