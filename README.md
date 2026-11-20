@@ -6,6 +6,71 @@ Cada microfrontend es desarrollado con su propio stack tecnológico (React, Vue 
 
 ---
 
+## 🚀 Acceso Rápido y Cómo Abrir la Aplicación
+
+El sistema completo se encuentra desplegado y operativo en la nube de AWS. Para utilizarlo, **no se requiere instalar ningún software ni configurar dependencias**: se accede directamente a través de cualquier navegador web moderno (Chrome, Edge, Firefox, Safari, Brave):
+
+| Entorno | Descripción | Enlace Directo |
+| :--- | :--- | :--- |
+| **🌐 Aplicación Integrada (Shell Oficial)** | **Acceso principal del usuario:** Carga el contenedor Shell en React y orquesta en la misma pantalla el Editor (Vue 3) y el Viewer (Lit). | 👉 **[https://d1ykub9gcq8bmq.cloudfront.net](https://d1ykub9gcq8bmq.cloudfront.net)** |
+| **🧪 Editor Aislado** | Página de prueba independiente del microfrontend Editor. Permite conectar manualmente una API REST y validar operaciones. | [https://d216ytiypzhucu.cloudfront.net](https://d216ytiypzhucu.cloudfront.net) |
+| **🧪 Viewer Aislado** | Página de prueba independiente del microfrontend Viewer. Permite probar consultas, filtros e historial de forma autónoma. | [https://d1uzpk097vso8n.cloudfront.net](https://d1uzpk097vso8n.cloudfront.net) |
+
+---
+
+## 📖 Explicación y Guía de Uso del Aplicativo
+
+### ¿Qué es y cómo funciona el sistema?
+Es una solución distribuida para la **gestión de tareas pendientes (TODO)** con **auditoría histórica en tiempo real**. El Shell actúa como aplicación anfitriona y divide el espacio de trabajo en dos paneles integrados, cada uno alimentado por un microfrontend independiente:
+
+```text
++----------------------------------------------------------------------------------------------------+
+|                                    GESTOR DISTRIBUIDO TODO (SHELL)                                 |
+|                                                                                                    |
+|  [PANEL IZQUIERDO / SUPERIOR]                      [PANEL DERECHO / INFERIOR]                      |
+|  MFE Editor (<todo-editor>)                        MFE Viewer (<todo-viewer>)                      |
+|  =============================================     =============================================   |
+|  * Formulario "Nueva Tarea"                        * Buscador y Filtros (Todas/Pendientes/Comp.)   |
+|    - Campo de título y botón "Crear tarea"         * Lista interactiva de tareas con chips estado  |
+|  * Formulario "Editar Tarea Seleccionada"          * Detalle de la tarea seleccionada (ID, Fechas) |
+|    - Título y selector de estado (Pend./Comp.)     * Historial de Auditoría cronológico (SNS/SQS)  |
+|    - Botón "Guardar cambios"                       * Botón "Actualizar historial"                  |
+|  * Botón "Eliminar tarea" (Modal de confirmación)                                                  |
++----------------------------------------------------------------------------------------------------+
+```
+
+### Funcionalidades por Componente:
+
+1. **Panel Editor (`<todo-editor>` — Desarrollado en Vue 3):**
+   * **Crear una tarea:** Escribe el nombre o descripción en el campo *Título de la tarea* y haz clic en **Crear tarea**. El componente emite una solicitud `POST /todos` a la API Gateway y notifica inmediatamente al resto del sistema mediante el evento `todo:created`.
+   * **Editar una tarea existente:** Al hacer clic en cualquier tarea de la lista del Viewer, los datos se transfieren automáticamente al formulario de edición del Editor. Puedes modificar el título o cambiar su estado (*Pendiente / Completada*) y presionar **Guardar cambios** (`PUT /todos/{id}`).
+   * **Eliminar una tarea:** Al seleccionar una tarea y presionar **Eliminar tarea**, el Editor abre una **ventana modal de confirmación** para evitar borrados accidentales. Al confirmar, ejecuta `DELETE /todos/{id}` y notifica el evento `todo:deleted` para remover la tarea de la interfaz.
+
+2. **Panel Viewer (`<todo-viewer>` — Desarrollado en Lit):**
+   * **Lista reactiva en tiempo real:** Muestra todas las tareas registradas con su título, fecha y un indicador visual de estado (*chip* verde para *Completada* y chip ámbar para *Pendiente*).
+   * **Buscador y filtros instantáneos:** Permite buscar tareas escribiendo en la barra de búsqueda (sin importar mayúsculas o tildes) y filtrar con un solo clic entre *Todas*, *Pendientes* o *Completadas*.
+   * **Selección y sincronización:** Al hacer clic en una tarjeta de tarea, se activa el evento `todo:selected`. Esto selecciona la tarea en la interfaz, abre su panel de detalle y le indica al Editor qué tarea está lista para edición.
+   * **Línea de tiempo de auditoría (Audit Log):** En la sección inferior derecha muestra la secuencia de eventos ocurridos con la tarea (`todo.created`, `todo.updated`, `todo.completed`). Como estos eventos son procesados de forma asíncrona mediante AWS SNS y SQS en la nube, el Viewer incluye una rutina de consulta periódica (*polling*) y un botón **Actualizar historial** para reflejar los eventos tan pronto son persistidos en DynamoDB.
+
+---
+
+### ⏱️ Guía Paso a Paso para Probar el Sistema (Demo en 2 Minutos)
+
+Para comprobar la integración distribuida en vivo, sigue este recorrido:
+
+1. **Abrir la aplicación:** Entra a **[https://d1ykub9gcq8bmq.cloudfront.net](https://d1ykub9gcq8bmq.cloudfront.net)** en tu navegador.
+2. **Crear una tarea:** En el panel izquierdo (**Editor**), escribe `Preparar sustentación de Microfrontends` y haz clic en **Crear tarea**.
+   * *Qué observar:* La tarea aparecerá de inmediato en la lista del panel derecho (**Viewer**) sin necesidad de recargar la página.
+3. **Seleccionar para editar:** En el panel derecho (**Viewer**), haz clic sobre la tarea que acabas de crear.
+   * *Qué observar:* El Viewer abrirá el detalle de la tarea y su historial inicial (`todo.created`), mientras que el **Editor** cargará automáticamente su título y estado actual.
+4. **Modificar y completar:** En el **Editor**, cambia el estado a **Completada** y pulsa **Guardar cambios**.
+   * *Qué observar:* El chip de estado en la lista del Viewer cambiará de inmediato a verde (*Completada*) y, tras unos instantes de procesamiento en SNS/SQS, se agregará el evento de actualización en la línea de tiempo de auditoría.
+5. **Filtrar tareas:** En el **Viewer**, haz clic en el botón **Completadas** o escribe en la barra de búsqueda para verificar la filtración instantánea.
+6. **Eliminar la tarea:** Con la tarea seleccionada, haz clic en **Eliminar tarea** en el Editor. En la ventana modal emergente, confirma la eliminación.
+   * *Qué observar:* La tarea se borrará en DynamoDB y desaparecerá de la vista en tiempo real.
+
+---
+
 ## 1. Integrantes y Distribución de Roles
 
 | Rol | Componente | Responsable | Stack Tecnológico | URL de Producción |
