@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Editor de tareas · Desarrollo independiente</title>
+    <link rel="icon" href="data:," />
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #0b0a10; color: #f4f1fb; font: 14px/1.6 'Segoe UI', sans-serif; }
+      main { width: min(100% - 32px, 640px); margin: 48px auto; }
+      h1 { font-size: 25px; margin-bottom: 8px; }
+      p { color: #b0a8c3; }
+      .panel { margin-top: 24px; padding: 24px; border: 1px solid #302a42; border-radius: 10px; background: #14121d; }
+      label { display: block; margin-top: 12px; font-size: 12px; }
+      input, button { min-height: 40px; margin-top: 6px; border: 1px solid #544368; border-radius: 6px; padding: 9px 12px; color: #f4f1fb; background: #100e18; font: inherit; }
+      input { display: block; width: 100%; }
+      button { cursor: pointer; background: #35224e; }
+      :focus-visible { outline: 2px solid #b49aff; outline-offset: 3px; }
+      #connection, #events { font-size: 12px; overflow-wrap: anywhere; }
+      code { color: #c7afff; }
+      @media (max-width: 400px) { .panel { padding: 18px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Editor · Vue 3</h1>
+      <p>Prueba independiente del Custom Element. Las operaciones se enviarán a la API que configures.</p>
+      <form id="configuration" class="panel">
+        <label for="api-url">URL base de la API</label>
+        <input id="api-url" type="url" placeholder="https://tu-api.example/dev" required />
+        <button type="submit">Conectar API</button>
+        <p id="connection" role="status">Configura una API para habilitar el Editor.</p>
+      </form>
+      <section class="panel" aria-label="Componente Editor">
+        <todo-editor></todo-editor>
+      </section>
+      <form id="selection" class="panel">
+        <label for="todo-id">ID de tarea para probar la edición</label>
+        <input id="todo-id" type="text" required />
+        <button type="submit">Seleccionar por ID</button>
+        <p>Envía <code>todo:selected</code>, el mismo evento que usa el Viewer.</p>
+        <p id="events" role="status">Sin operaciones de escritura.</p>
+      </form>
+    </main>
+    <script type="module">
+      import { VERSION } from './todo-editor.js';
+      const editor = document.querySelector('todo-editor');
+      document.querySelector('#configuration').addEventListener('submit', (event) => {
+        event.preventDefault();
+        editor.setAttribute('api-url', document.querySelector('#api-url').value.trim());
+        document.querySelector('#connection').textContent = `Editor v${VERSION} configurado. Comprueba que sea la API esperada antes de escribir.`;
+      });
+      document.querySelector('#selection').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const id = document.querySelector('#todo-id').value.trim();
+        if (id) window.dispatchEvent(new CustomEvent('todo:selected', { detail: { id } }));
+      });
+      for (const name of ['todo:created', 'todo:updated', 'todo:deleted']) {
+        window.addEventListener(name, (event) => {
+          document.querySelector('#events').textContent = `${name} · ${event.detail.id}`;
+        });
+      }
+    </script>
+  </body>
+</html>
