@@ -6,7 +6,27 @@ Editor independiente para el proyecto universitario Shell y Microfrontends TODO.
 
 Se implementaron creación, edición parcial, cambio de estado y eliminación confirmada. Pasaron 16 pruebas unitarias y 32 comprobaciones de navegador, que ejecutan los mismos 16 escenarios sobre desarrollo y producción. Se generó `dist/todo-editor.js`, se comprobó su exportación `VERSION` y el registro de `<todo-editor>`.
 
-La preparación de AWS contiene una plantilla de CloudFormation y un script para CloudShell. Su publicación requiere autorización expresa y una sesión de la cuenta propia de Javier. La integración final debe comprobarse cuando Juan publique la URL del Editor en su registro.
+La versión 1.0.0 se publicó el 19 de noviembre de 2026 con autorización del usuario y una sesión verificada de la cuenta de Javier Ruiz. CloudFormation terminó en `CREATE_COMPLETE` y CloudFront en `Deployed`. La integración final debe comprobarse cuando Juan publique la URL del Editor en su registro.
+
+## Despliegue publicado
+
+La entrada ES pública del Editor está disponible para el Shell. La página raíz permite configurar manualmente la API y probar el componente de forma independiente. [Módulo del Editor](https://d216ytiypzhucu.cloudfront.net/todo-editor.js), [página independiente](https://d216ytiypzhucu.cloudfront.net/).
+
+| Recurso | Valor verificado |
+| --- | --- |
+| Cuenta de Javier Ruiz | `484612795268` |
+| Región del stack | `us-east-2`, Ohio |
+| Stack | `mfe-todos-editor`, `CREATE_COMPLETE` |
+| Bucket privado | `mfe-todos-editor-editorbucket-wq9kdsancjzx` |
+| Distribución CloudFront | `E1N1F4054BU651`, `Deployed` |
+| OAC | `E1GW9MY2GNFTRN`, firma `always` con `sigv4` |
+| Implementación publicada | `assets/todo-editor-AfYn6Mfu.js` |
+
+Se verificaron GET y HEAD con HTTP 200 en la entrada y en el archivo con hash, tipo `application/javascript`, CORS para el origen oficial del Shell y los valores de caché previstos. Los SHA-256 de ambos objetos publicados coinciden con la compilación local probada. Un origen diferente recibe la respuesta sin autorización CORS. S3 devolvió HTTP 403 al acceso directo sin credenciales y su política informó `IsPublic: false`, con los cuatro bloqueos públicos activados. HTTP redirige a HTTPS con 301.
+
+El navegador integrado abrió la página pública y cargó el Custom Element. Las comprobaciones HTTP se ejecutaron desde CloudShell. Las peticiones de los clientes HTTP locales terminaron con errores de conexión, por lo que la evidencia HTTP guardada corresponde a CloudShell.
+
+El registro público del Shell consultado durante esta verificación sigue apuntando a `localhost` para ambos microfrontends. Juan debe sustituir su objeto `editor` por el contenido de `aws/registro-editor.json`, publicar el registro y revisar el recorrido integrado. El push de los commits continúa pendiente del permiso de escritura de GitHub.
 
 ## Arquitectura y archivos
 
@@ -35,6 +55,7 @@ Editor → window todo:created / todo:updated / todo:deleted → Viewer
 | `playwright.config.js` | Ejecuta los escenarios en desarrollo y sobre `dist/` |
 | `aws/editor.yaml` | S3 privado, bloqueo público, CloudFront, OAC, CORS y caché |
 | `aws/publicar.sh` | Despliegue y actualización desde CloudShell una vez autorizados |
+| `aws/registro-editor.json` | Entrada pública verificada para que Juan actualice su registro |
 
 Todas las dependencias del componente se empaquetan en el JavaScript generado. Vue compila los estilos del archivo `.ce.vue` dentro del módulo para insertarlos en Shadow DOM. La entrada pública `dist/todo-editor.js` reexporta `VERSION` desde `dist/assets/todo-editor-HASH.js`, que registra el elemento al importarse.
 
@@ -77,14 +98,14 @@ document.querySelector('#slot-editor [data-mfe-mount]').append(editor);
 console.log(module.VERSION);
 ```
 
-Juan debe conservar los demás registros y actualizar la entrada de `editor` cuando exista la URL AWS.
+Juan debe conservar los demás registros y actualizar la entrada de `editor` con la URL AWS publicada.
 
 ```json
 {
   "name": "editor",
   "tag": "todo-editor",
   "slot": "slot-editor",
-  "url": "https://DOMINIO-EDITOR.cloudfront.net/todo-editor.js"
+  "url": "https://d216ytiypzhucu.cloudfront.net/todo-editor.js"
 }
 ```
 
@@ -143,7 +164,7 @@ Para ejecutar todo en orden, usa `npm run check`. El navegador de Playwright deb
 
 Se comprobaron creación, validación vacía, PUT parcial, `completed: true` y `false`, confirmación y cancelación de DELETE, HTTP 204, errores 400/404, red, eventos entrantes y salientes, limpieza y reconexión de listeners, respuesta tardía, cambio de API, prevención de peticiones duplicadas, contenido externo seguro y diseño móvil. Los mismos escenarios verifican la versión compilada y la de desarrollo.
 
-Además, el 19 de noviembre de 2026 se realizó una prueba aislada con el Shell público y el Viewer real. Playwright sirvió el Editor compilado desde archivos locales mediante un origen HTTPS simulado y sustituyó la configuración, el registro y la API exclusivamente en la sesión de prueba. Se verificaron creación reflejada en Viewer, selección por ID, actualización de título y estado, y eliminación confirmada con HTTP 204. El recorrido terminó sin errores JavaScript. La publicación AWS y la integración con el registro oficial siguen pendientes.
+Además, el 19 de noviembre de 2026 se realizó una prueba aislada con el Shell público y el Viewer real. Playwright sirvió el Editor compilado desde archivos locales mediante un origen HTTPS simulado y sustituyó la configuración, el registro y la API exclusivamente en la sesión de prueba. Se verificaron creación reflejada en Viewer, selección por ID, actualización de título y estado, y eliminación confirmada con HTTP 204. El recorrido terminó sin errores JavaScript. Después se publicó la misma compilación en AWS y se comprobaron sus hashes. La integración con el registro oficial sigue pendiente.
 
 ```bash
 npm run preview
@@ -151,15 +172,15 @@ npm run preview
 
 La vista previa sirve la compilación en 5174. Deben publicarse juntos la entrada `todo-editor.js` y los archivos de `assets/`.
 
-## Publicación preparada para AWS
+## Publicación y actualizaciones en AWS
 
-El Editor debe publicarse en la cuenta propia de Javier, diferente de las cuentas del Shell y del Viewer. Este repositorio incluye la preparación local. La ejecución del despliegue queda pendiente de autorización expresa.
+El primer despliegue se completó en la cuenta propia de Javier. Este repositorio conserva la plantilla y el script utilizados para reproducirlo y actualizarlo dentro de esa cuenta. Las futuras publicaciones deben realizarse con una sesión autorizada.
 
 La plantilla crea un bucket con las cuatro opciones de Block Public Access activas, propiedad del bucket sin ACL, cifrado y versionado. CloudFront usa el endpoint REST regional de S3, OAC con firma SigV4 y una política `s3:GetObject` limitada al ARN de esa distribución. La distribución redirige HTTP a HTTPS y sirve GET/HEAD.
 
 La política de respuestas añade CORS para `https://d1ykub9gcq8bmq.cloudfront.net`. El bucket también declara ese origen. Las peticiones REST salen del navegador al backend compartido, que debe permitir el origen del Shell y los métodos POST/PUT/DELETE con `Content-Type`. El CORS del módulo y el CORS de la API se configuran en sus respectivos servicios.
 
-Cuando Javier autorice y abra CloudShell en su cuenta, prepara un paquete con las carpetas `dist/` y `aws/`. Conserva la estructura siguiente al extraerlo.
+Para una actualización autorizada desde CloudShell de Javier, prepara un paquete con las carpetas `dist/` y `aws/`. Conserva la estructura siguiente al extraerlo.
 
 ```text
 mfe-editor/
