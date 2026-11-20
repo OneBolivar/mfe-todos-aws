@@ -26,7 +26,7 @@ Se verificaron GET y HEAD con HTTP 200 en la entrada y en el archivo con hash, t
 
 El navegador integrado abrió la página pública y cargó el Custom Element. Las comprobaciones HTTP se ejecutaron desde CloudShell. Las peticiones de los clientes HTTP locales terminaron con errores de conexión, por lo que la evidencia HTTP guardada corresponde a CloudShell.
 
-El registro público del Shell consultado durante esta verificación sigue apuntando a `localhost` para ambos microfrontends. Juan debe sustituir su objeto `editor` por el contenido de `aws/registro-editor.json`, publicar el registro y revisar el recorrido integrado. El push de los commits continúa pendiente del permiso de escritura de GitHub.
+Durante la verificación AWS, el registro público del Shell apuntaba a `localhost` para ambos microfrontends. La rama `shell` del repositorio ya incluye las URLs públicas del Editor y del Viewer. Su publicación en AWS y la comprobación integrada siguen pendientes. Los commits del Editor quedaron publicados en GitHub mediante la cuenta autorizada `OneBolivar`, conservando la autoría de `Chuchossj`.
 
 ## Arquitectura y archivos
 
