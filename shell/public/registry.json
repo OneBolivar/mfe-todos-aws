@@ -4,13 +4,13 @@
       "name": "editor",
       "tag": "todo-editor",
       "slot": "slot-editor",
-      "url": "http://localhost:5174/todo-editor.js"
+      "url": "https://d216ytiypzhucu.cloudfront.net/todo-editor.js"
     },
     {
       "name": "viewer",
       "tag": "todo-viewer",
       "slot": "slot-viewer",
-      "url": "http://localhost:5175/todo-viewer.js"
+      "url": "https://d1uzpk097vso8n.cloudfront.net/todo-viewer.js"
     }
   ]
 }
