@@ -1,91 +1,253 @@
-# Gestor Distribuido TODO - Microfrontends en AWS
+# Gestor Distribuido TODO — Arquitectura de Microfrontends en AWS (Corte 3)
 
-Proyecto universitario de Sistemas Distribuidos que integra tres interfaces independientes para gestionar tareas y consultar su historial de auditoría. El Shell utiliza React, el Editor utiliza Vue 3 y el Viewer utiliza Lit. Cada componente se publica en la cuenta AWS de su integrante mediante S3 privado y CloudFront.
+Sistema universitario distribuido de alto rendimiento que implementa una arquitectura modular de microfrontends (MFE) alojada de forma independiente y desacoplada sobre los servicios en la nube de Amazon Web Services (AWS). 
 
-## Código y documentación
+Cada microfrontend es desarrollado con su propio stack tecnológico (React, Vue 3, Lit), empaquetado como Web Component estándar (Custom Elements con Shadow DOM) y publicado en buckets S3 privados protegidos con Origin Access Control (OAC) y distribuidos globalmente con Amazon CloudFront mediante conexiones seguras HTTPS.
 
-Este README general está disponible en la raíz de las ramas `main`, `shell`, `editor` y `viewer`. El código de cada componente se mantiene en su rama correspondiente.
+---
 
-| Componente | Responsable del rol | Tecnología | Código y guía técnica |
-| --- | --- | --- | --- |
-| Shell | Juan Bolívar | React + TypeScript + Vite | [Código del Shell](https://github.com/OneBolivar/mfe-todos-aws/tree/shell/shell) · [README del Shell](https://github.com/OneBolivar/mfe-todos-aws/blob/shell/shell/README.md) |
-| Editor | Javier Ruiz | Vue 3 + Vite | [Código del Editor](https://github.com/OneBolivar/mfe-todos-aws/tree/editor/mfe-editor) · [README del Editor](https://github.com/OneBolivar/mfe-todos-aws/blob/editor/mfe-editor/README.md) |
-| Viewer e historial | Jesús Castillo | Lit + Vite | [Código del Viewer](https://github.com/OneBolivar/mfe-todos-aws/tree/viewer/mfe-viewer) · [README del Viewer](https://github.com/OneBolivar/mfe-todos-aws/blob/viewer/mfe-viewer/README.md) |
+## 1. Integrantes y Distribución de Roles
 
-El desarrollo del Editor recibió asistencia de Codex desde la sesión de Jesús. Los commits conservan la identidad Git con la que se realizaron y su historial original.
+| Rol | Componente | Responsable | Stack Tecnológico | URL de Producción |
+| :--- | :--- | :--- | :--- | :--- |
+| **Rol 1** | **Shell (Host) y Coordinación AWS** | Juan Esteban Bolívar Pacheco | React 19 + TypeScript + Vite | [https://d1ykub9gcq8bmq.cloudfront.net](https://d1ykub9gcq8bmq.cloudfront.net) |
+| **Rol 2** | **Microfrontend Editor** | Javier Ruiz | Vue 3 + Vite | [https://d216ytiypzhucu.cloudfront.net/todo-editor.js](https://d216ytiypzhucu.cloudfront.net/todo-editor.js) |
+| **Rol 3** | **Microfrontend Viewer e Historial** | Jesús Castillo | Lit 3 + Vite | [https://d1uzpk097vso8n.cloudfront.net/todo-viewer.js](https://d1uzpk097vso8n.cloudfront.net/todo-viewer.js) |
 
-## Direcciones del proyecto
+### Responsabilidades por Rol
 
-| Recurso | URL |
-| --- | --- |
-| Shell del equipo | https://d1ykub9gcq8bmq.cloudfront.net/ |
-| Página independiente del Editor | https://d216ytiypzhucu.cloudfront.net/ |
-| Módulo ES del Editor | https://d216ytiypzhucu.cloudfront.net/todo-editor.js |
-| Módulo ES del Viewer | https://d1uzpk097vso8n.cloudfront.net/todo-viewer.js |
-| API REST compartida | https://6jwkx3ebma.execute-api.us-east-2.amazonaws.com/dev |
+* **Rol 1 — Shell (Host) y Coordinación AWS (`shell/`):**
+  * Orquestación de la aplicación y layout contenedor en tiempo de ejecución.
+  * Carga dinámica y asíncrona de los microfrontends mediante imports nativos de JavaScript (`import(mfe.url)`).
+  * Lectura de configuración y catálogo en tiempo de ejecución (`config.json` y `registry.json`) sin recompilar código.
+  * Provisión de puntos de montaje dinámicos (slots) y manejo de estados de carga y resiliencia ante caídas de red.
+  * Configuración de la infraestructura base, gobernanza de CORS y políticas de seguridad OAC.
 
-La página independiente del Editor permite introducir la URL base de la API y pulsar **Conectar API**. Las operaciones manuales escriben en la API configurada.
+* **Rol 2 — Microfrontend Editor (`mfe-editor/`):**
+  * Formulario reactivo para la creación de nuevas tareas (`POST /todos`).
+  * Edición y actualización parcial de títulos y estados de finalización (`PUT /todos/{id}`).
+  * Eliminación de tareas con cuadro de diálogo modal de confirmación (`DELETE /todos/{id}`).
+  * Manejo estricto de respuestas `HTTP 204 No Content` sin intentar parseo de JSON.
+  * Encapsulamiento de estilos e interfaz en Shadow DOM como el Web Component `<todo-editor>`.
+  * Despliegue en AWS S3 privado (`mfe-todos-editor-editorbucket-wq9kdsancjzx`) y CloudFront (`E1N1F4054BU651`).
+  * Página de prueba independiente: [https://d216ytiypzhucu.cloudfront.net/](https://d216ytiypzhucu.cloudfront.net/).
 
-## Cómo funciona
+* **Rol 3 — Microfrontend Viewer e Historial (`mfe-viewer/`):**
+  * Consulta y renderizado reactivo de la lista de tareas (`GET /todos`).
+  * Detalle de la tarea seleccionada (`GET /todos/{id}`) y emisión del evento de selección.
+  * Historial de auditoría asíncrono (`GET /todos/{id}/history`) con estrategia de reintento y sondeo (*backoff polling*) para aguardar la consistencia eventual de eventos en DynamoDB/SNS/SQS.
+  * Búsqueda en tiempo real tolerante a diacríticos y filtros por estado (Todas / Pendientes / Completadas).
+  * Encapsulamiento como Web Component autónomo `<todo-viewer>` con Lit en Shadow DOM.
+  * Despliegue en AWS S3 privado y CloudFront (`d1uzpk097vso8n.cloudfront.net`).
 
-1. El Shell obtiene la base de la API desde `config.json` y las URLs de los microfrontends desde `registry.json`.
-2. Importa cada módulo con `import()`, comprueba su Custom Element y le entrega la configuración mediante `api-url`.
-3. El Editor crea, actualiza y elimina tareas mediante POST, PUT parcial y DELETE. La eliminación requiere confirmación.
-4. El Viewer consulta la lista, el detalle y el historial mediante GET, y permite seleccionar una tarea para editarla.
-5. Los componentes se comunican mediante eventos de navegador en `window`.
+---
 
-| Evento | Emisor | Información |
-| --- | --- | --- |
-| `todo:selected` | Viewer | ID de la tarea seleccionada |
-| `todo:created` | Editor | TODO creado |
-| `todo:updated` | Editor | TODO actualizado |
-| `todo:deleted` | Editor | ID de la tarea eliminada |
+## 2. Backend Serverless (Parte 2)
 
-El backend compartido utiliza API Gateway, Lambda, DynamoDB, SNS y SQS. La auditoría se procesa de forma asíncrona, por lo que el historial puede aparecer después de una escritura.
+El backend compartido fue desarrollado bajo el stack `todo-serverless-app` utilizando **AWS SAM** (Serverless Application Model) en la región **`us-east-2`** (Ohio).
 
-## Ejecución local
+* **URL Base de la API REST:**  
+  `https://6jwkx3ebma.execute-api.us-east-2.amazonaws.com/dev`
 
-Usa Node.js 20.19 o posterior en la serie 20, o Node.js 22.12 o posterior, y npm.
+### Componentes de Infraestructura del Backend
+* **Amazon API Gateway (HTTP/REST API):** Expone los endpoints seguros, maneja el enrutamiento HTTP y las cabeceras CORS para los orígenes autorizados de CloudFront y localhost.
+* **AWS Lambda (Python 3.12):** Funciones sin servidor para la resolución de cada verbo HTTP, validación de esquemas y publicación de eventos.
+* **Amazon DynamoDB:** Dos tablas NoSQL principales:
+  1. Tabla de tareas (`Todos`): Almacena `id`, `title`, `completed`, `createdAt`, `updatedAt`.
+  2. Tabla de auditoría (`AuditLog`): Almacena eventos históricos asociados a cada tarea (`eventType`, `occurredAt`, `snapshot`).
+* **Amazon SNS & Amazon SQS:** Tópico de notificaciones y cola de mensajería para el desacoplamiento asíncrono. Cuando una tarea es creada, modificada o eliminada, se publica un mensaje que es procesado por un worker Lambda para escribir en el historial de auditoría de forma no bloqueante.
 
-Para abrir el Editor desde una copia nueva del repositorio, ejecuta lo siguiente.
+### Contrato de Endpoints
+
+| Método | Endpoint | Descripción | Respuesta Exitosa |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/todos` | Lista todas las tareas registradas | `200 OK` (Array de tareas) |
+| `POST` | `/todos` | Crea una nueva tarea (`title`) | `201 Created` (Objeto tarea) |
+| `GET` | `/todos/{id}` | Obtiene los detalles de una tarea | `200 OK` (Objeto tarea) |
+| `PUT` | `/todos/{id}` | Actualiza parcialmente `title` o `completed` | `200 OK` (Objeto actualizado) |
+| `DELETE` | `/todos/{id}` | Elimina físicamente la tarea | `204 No Content` |
+| `GET` | `/todos/{id}/history` | Historial de auditoría asíncrono | `200 OK` (Array de eventos) |
+
+---
+
+## 3. Diagrama de Arquitectura del Sistema
+
+```text
++----------------------------------------------------------------------------------------------------------------+
+|                                              CLIENTE (NAVEGADOR WEB)                                           |
+|                                                                                                                |
+|   +--------------------------------------------- SHELL (Host React) ---------------------------------------+   |
+|   | 1. Descarga runtime: fetch('/config.json') y fetch('/registry.json') con cache: 'no-store'              |   |
+|   | 2. Import dinámico ES Modules: import(url_editor) y import(url_viewer)                                 |   |
+|   | 3. Monta Custom Elements en el DOM: <todo-editor api-url="..."> y <todo-viewer api-url="...">            |   |
+|   |                                                                                                        |   |
+|   |     +----------------------------+                     +----------------------------+                  |   |
+|   |     |    <todo-editor> (Vue 3)   |                     |    <todo-viewer> (Lit 3)   |                  |   |
+|   |     |      (Shadow DOM open)     |                     |      (Shadow DOM open)     |                  |   |
+|   |     |                            |                     |                            |                  |   |
+|   |     | - Formulario Crear/Editar  |                     | - Lista de tareas          |                  |   |
+|   |     | - Modal Eliminar (204)     |                     | - Detalle + Filtros        |                  |   |
+|   |     | - Lee prop: apiUrl         |                     | - Historial de Auditoría   |                  |   |
+|   |     +-------------+--------------+                     +-------------+--------------+                  |   |
+|   |                   |                                                  ^                             |   |
+|   |                   |   window.dispatchEvent('todo:created', todo)     |                             |   |
+|   |                   |   window.dispatchEvent('todo:updated', todo)     |                             |   |
+|   |                   +--------------------------------------------------+                             |   |
+|   |                   |   window.dispatchEvent('todo:deleted', { id })   |                             |   |
+|   |                   |                                                  |                             |   |
+|   |                   |   window.dispatchEvent('todo:selected', { id })  |                             |   |
+|   |                   +<-------------------------------------------------+                             |   |
+|   |                                                                                                        |   |
+|   +-------------------+--------------------------------------------------+---------------------------------+   |
++-----------------------|--------------------------------------------------|-------------------------------------+
+                        |                                                  |
+           Operaciones POST, PUT, DELETE                               Consultas GET (List, Detail, History)
+                        |                                                  |
+                        v                                                  v
++----------------------------------------------------------------------------------------------------------------+
+|                                         BACKEND SERVERLESS (AWS us-east-2)                                     |
+|                                                                                                                |
+|                      Amazon API Gateway (REST API): /dev/todos  (CORS habilitado)                              |
+|                                                   |                                                            |
+|                           +-----------------------+-----------------------+                                    |
+|                           |                                               |                                    |
+|                           v                                               v                                    |
+|             AWS Lambda (CRUD Handlers)                          AWS Lambda (Audit Worker)                      |
+|                           |                                               ^                                    |
+|              +------------+------------+                                  |                                    |
+|              |                         |                         +--------+--------+                           |
+|              v                         v                         |                 |                           |
+|       Amazon DynamoDB             Amazon SNS  ===============> Amazon SQS          |                           |
+|        (Tabla Todos)            (TodoTopic)       (Cola)     (AuditQueue)          |                           |
+|                                                                                    v                           |
+|                                                                             Amazon DynamoDB                    |
+|                                                                             (Tabla AuditLog)                   |
++----------------------------------------------------------------------------------------------------------------+
+
++----------------------------------------------------------------------------------------------------------------+
+|                                    INFRAESTRUCTURA DE DESPLIEGUE EN AWS                                        |
+|                                                                                                                |
+|   +---------------------------+    +---------------------------+    +--------------------------------------+   |
+|   |   Shell (Juan Bolívar)    |    |    Editor (Javier Ruiz)   |    |       Viewer (Jesús Castillo)        |   |
+|   |  https://d1ykub...net     |    |   https://d216yt...net    |    |        https://d1uzpk...net          |   |
+|   |                           |    |                           |    |                                      |   |
+|   |     Amazon CloudFront     |    |     Amazon CloudFront     |    |          Amazon CloudFront           |   |
+|   |     (Distribución OAC)    |    |     (Distribución OAC)    |    |          (Distribución OAC)          |   |
+|   |             |             |    |             |             |    |                  |                   |   |
+|   |             v             |    |             v             |    |                  v                   |   |
+|   |       S3 Bucket Privado   |    |       S3 Bucket Privado   |    |            S3 Bucket Privado         |   |
+|   |      (Block Public Access)|    |      (Block Public Access)|    |           (Block Public Access)      |   |
+|   +---------------------------+    +---------------------------+    +--------------------------------------+   |
++----------------------------------------------------------------------------------------------------------------+
+```
+
+---
+
+## 4. Comunicación Desacoplada entre Microfrontends
+
+Los componentes no comparten dependencias de frameworks ni se importan directamente entre sí. Toda la interacción ocurre a través del bus de eventos nativo del navegador (`window`) mediante `CustomEvent`:
+
+```text
+Viewer (Emisor) --------> window.dispatchEvent('todo:selected', { detail: { id } })
+                              └──────> Editor (Receptor escucha y carga la tarea en formulario de edición)
+
+Editor (Emisor) --------> window.dispatchEvent('todo:created', { detail: todo })
+Editor (Emisor) --------> window.dispatchEvent('todo:updated', { detail: todo })
+Editor (Emisor) --------> window.dispatchEvent('todo:deleted', { detail: { id } })
+                              └──────> Viewer (Receptor actualiza lista y consulta historial asíncrono)
+```
+
+Ambos microfrontends limpian sus escuchas (`removeEventListener`) en el gancho de ciclo de vida de desconexión (`disconnectedCallback` / `onUnmounted`) para evitar fugas de memoria.
+
+---
+
+## 5. Ejecución Local y Despliegue Independiente
+
+El repositorio está estructurado como un monorepo que alberga tanto el Shell como los microfrontends autónomos.
+
+### Requisitos Previos
+* Node.js `^20.19.0` o `>=22.12.0`
+* npm (incluido con Node.js)
+
+### Ejecución de Todos los Servicios en Local
+
+Para levantar el entorno integrado completo en tu máquina:
 
 ```bash
+# 1. Clonar e ingresar al repositorio
 git clone https://github.com/OneBolivar/mfe-todos-aws.git
 cd mfe-todos-aws
-git switch editor
-cd mfe-editor
+
+# 2. Iniciar el Shell (Puerto 5173 por defecto)
+cd shell
+npm ci
+npm run dev
+
+# 3. En otra terminal, iniciar el Editor (Puerto 5174)
+cd ../mfe-editor
+npm ci
+npm run dev
+
+# 4. En otra terminal, iniciar el Viewer (Puerto 5175)
+cd ../mfe-viewer
 npm ci
 npm run dev
 ```
 
-Abre http://localhost:5174/ y configura la API con el formulario de conexión. El README técnico explica cómo seleccionar una tarea por ID para probar el componente de forma independiente.
+> **Nota para desarrollo local:** El archivo `shell/public/registry.json` puede apuntar a las direcciones locales (`http://localhost:5174/todo-editor.js` y `http://localhost:5175/todo-viewer.js`) durante pruebas sin conexión a internet.
 
-| Componente | Rama | Carpeta | Puerto de desarrollo |
-| --- | --- | --- | --- |
-| Shell | `shell` | `shell/` | `5173` de Vite por defecto |
-| Editor | `editor` | `mfe-editor/` | `5174` |
-| Viewer | `viewer` | `mfe-viewer/` | `5175` |
+---
 
-Para ejecutar otro componente, utiliza su rama y carpeta, instala las dependencias con `npm ci` y sigue su README. La rama `shell` contiene el registro de producción con las URLs de AWS. Para una integración local, configura ese registro con las direcciones localhost de los dos módulos y ejecútalos desde sus respectivas copias de trabajo.
+### Despliegue Independiente y Actualizaciones en Producción
 
-## Pruebas y compilación
+Una ventaja fundamental de esta arquitectura es el **desacoplamiento total de despliegue**:
 
-Las pruebas automatizadas de los microfrontends utilizan respuestas de API simuladas.
+#### A. Actualizar el registro sin recompilar el Shell (Zero-Downtime)
+El Shell no contiene URLs fijas ni empaqueta a los microfrontends. Al iniciar, solicita `/registry.json` con `cache: 'no-store'`.
+1. Para apuntar a una nueva versión o nueva URL de un microfrontend, simplemente actualiza `registry.json` en el bucket S3 del Shell.
+2. Invalida la ruta en CloudFront:
+   ```bash
+   aws cloudfront create-invalidation --distribution-id <SHELL_DIST_ID> --paths "/registry.json" "/config.json"
+   ```
+3. Cualquier usuario que cargue la aplicación consumirá de inmediato los nuevos módulos sin que el código del Shell haya cambiado ni requerido un nuevo build.
 
-| Componente | Comandos | Resultado comprobado durante la entrega |
-| --- | --- | --- |
-| Editor | `npm run check` | 16 pruebas unitarias y 32 comprobaciones de navegador aprobadas, junto con la compilación |
-| Viewer | `npm test` y `npm run build` | 6 pruebas unitarias y 9 de navegador aprobadas, junto con la compilación |
-| Shell | `npm run build` y `npm run lint` | Compilación y ESLint correctos con el registro actualizado |
+#### B. Publicar una nueva versión de un Microfrontend (ej. `1.0.0` a `1.0.1`)
+1. Incrementa la versión en el `package.json` del componente (`mfe-editor` o `mfe-viewer`).
+2. Ejecuta `npm run build`. Vite generará un paquete JavaScript versionado por hash en `dist/assets/todo-*-HASH.js`.
+3. Sube los archivos con hash a S3 configurando caché inmutable:
+   ```bash
+   aws s3 cp ./dist/assets/ s3://<BUCKET_MFE>/assets/ --recursive --cache-control "public,max-age=31536000,immutable"
+   ```
+4. Sube la entrada fija (`todo-editor.js` o `todo-viewer.js`) configurando revalidación inmediata:
+   ```bash
+   aws s3 cp ./dist/todo-editor.js s3://<BUCKET_MFE>/todo-editor.js --cache-control "public,max-age=0,must-revalidate"
+   ```
+5. Invalida la entrada en la distribución de CloudFront del microfrontend:
+   ```bash
+   aws cloudfront create-invalidation --distribution-id <MFE_DIST_ID> --paths "/todo-editor.js"
+   ```
+6. El Shell y los usuarios reciben la nueva versión automáticamente sin recompilar ni alterar el Shell ni los demás microfrontends.
 
-Antes de ejecutar las pruebas de navegador, instala Chromium con `npx playwright install chromium`. Los README técnicos detallan los puertos utilizados, los contratos, la validación y los casos de error.
+---
 
-## Publicación y estado de integración
+## 6. Índice de Evidencias
 
-El Editor y el Viewer versión `1.0.0` se publicaron con S3 privado y CloudFront. Se comprobaron HTTPS, CORS para el origen del Shell, los metadatos de caché y el rechazo del acceso directo a S3 sin credenciales. La infraestructura del Editor utiliza CloudFormation y Origin Access Control con firma SigV4.
+Las capturas que certifican el correcto despliegue, configuración en AWS y funcionamiento del sistema se encuentran consolidadas en la carpeta [`evidencias/`](file:///home/ruta_ts/Escritorio/mfe-todos-aws/evidencias):
 
-Los cambios del Editor y del Viewer están publicados en sus ramas de GitHub. La rama `shell` también contiene las dos URLs públicas en [el registro de producción](https://github.com/OneBolivar/mfe-todos-aws/blob/shell/shell/public/registry.json).
+| Archivo | Descripción del Contenido |
+| :--- | :--- |
+| **`evidencias/JJJ-1.jpg`** | Configuración de buckets S3 privados, activación estricta de *Block Public Access* y distribución de Amazon CloudFront con Origin Access Control (OAC). |
+| **`evidencias/JJJ-2.jpg`** | Políticas de bucket S3 restringidas por `AWS:SourceArn` de CloudFront, configuración de cabeceras CORS (`AllowedOrigins`, `GET`, `HEAD`) y validación de permisos. |
+| **`evidencias/JJJ-3.jpg`** | Prueba integrada en vivo del sistema en CloudFront: Shell cargando los dos Web Components (`<todo-editor>` y `<todo-viewer>`), invocación a la API Serverless y visualización del historial asíncrono. |
 
-Queda pendiente publicar ese registro actualizado en AWS del Shell y comprobar el recorrido integrado en una sesión nueva. La última verificación guardada del Shell público todavía apuntaba a localhost. La comprobación conjunta realizada durante el desarrollo utilizó el Shell y el Viewer reales con configuración, registro y API simulados en la sesión de prueba.
+---
 
-Las instrucciones para desplegar, actualizar cada versión y verificar sus recursos se encuentran en los README técnicos de cada componente.
+## 7. Pruebas Automatizadas
+
+Cada módulo cuenta con su suite de pruebas unitarias y de integración en navegador:
+
+| Componente | Comando | Tipos de Pruebas |
+| :--- | :--- | :--- |
+| **Editor** | `npm run check` | 16 pruebas unitarias (`tests/api.test.js`) + 32 comprobaciones e2e con Playwright (`tests/browser/editor.spec.js`) |
+| **Viewer** | `npm test` | 6 pruebas unitarias (`test/api.test.js`) + 9 pruebas de integración e2e con Playwright (`test/viewer.spec.js`) |
+| **Shell** | `npm run build && npm run lint` | Verificación de compilación TypeScript/Vite y análisis de reglas ESLint |
